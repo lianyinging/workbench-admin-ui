@@ -1,0 +1,13 @@
+.git
+.idea
+.vscode
+.DS_Store
+node_modules
+dist
+_site
+docs
+mock
+*.log
+.env.development
+README.md
+LICENSE
