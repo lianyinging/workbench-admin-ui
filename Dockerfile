@@ -1,5 +1,5 @@
 # OPC 工作台管理前端 — Node 构建 + 容器内 Nginx
-# 运行：docker run -d -p 9002:9002 -e BACKEND_UPSTREAM=host.docker.internal:9080 <image>
+# 运行：docker run -d -p 9002:9002 -e BACKEND_UPSTREAM=106.15.53.78:9080 <image>
 
 FROM node:22-alpine AS builder
 WORKDIR /app

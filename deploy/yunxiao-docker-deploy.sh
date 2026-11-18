@@ -2,8 +2,8 @@
 # $image 由流水线上游「镜像构建」步骤注入，勿改名
 
 CONTAINER_NAME="cm-opc-workbench-admin-ui"
-# 后端地址（宿主机上的后端端口；同机部署可改成实际 IP）
-BACKEND_UPSTREAM="${BACKEND_UPSTREAM:-host.docker.internal:9080}"
+# 后端地址（IP:端口）
+BACKEND_UPSTREAM="${BACKEND_UPSTREAM:-106.15.53.78:9080}"
 
 if [ "$(docker ps -aq -f name=^/${CONTAINER_NAME}$)" ]; then
   echo "停止并删除旧容器: $CONTAINER_NAME"
@@ -24,7 +24,6 @@ docker run -d \
   --name="$CONTAINER_NAME" \
   -p 9002:9002 \
   -e BACKEND_UPSTREAM="$BACKEND_UPSTREAM" \
-  --add-host=host.docker.internal:host-gateway \
   "$image"
 
 echo "已启动 $CONTAINER_NAME -> http://0.0.0.0:9002  (BACKEND_UPSTREAM=$BACKEND_UPSTREAM)"
