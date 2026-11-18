@@ -8,6 +8,8 @@ export interface SysClientQuery extends BaseEntity {
   clientId?: string;
   /** 客户端key */
   clientKey?: string;
+  /** 设备类型 */
+  deviceType?: string;
   /** 状态（1正常 0停用） */
   status?: string;
 }
