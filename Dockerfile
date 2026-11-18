@@ -4,8 +4,8 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# 固定 Yarn classic（仓库是 yarn.lock v1，不要用 pnpm）
-RUN corepack enable && corepack prepare yarn@1.22.22 --activate
+# 固定 Yarn classic（国内勿用 corepack / registry.yarnpkg.com）
+RUN npm install -g yarn@1.22.22 --registry=https://registry.npmmirror.com
 
 COPY package.json yarn.lock .yarnrc.yml .npmrc ./
 RUN yarn install --frozen-lockfile --registry=https://registry.npmmirror.com
