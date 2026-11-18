@@ -1,6 +1,7 @@
-# 云效「Node.js 构建」步骤 → 构建命令
-# 不用 corepack（国内拉不到 registry.yarnpkg.com）
+# 云效「Node.js 构建」步骤 → 构建命令（产出 dist/）
+# 之后「镜像构建」用根目录 Dockerfile（只 COPY dist + Nginx）
 
 npm install -g yarn@1.22.22 --registry=https://registry.npmmirror.com
 yarn install --frozen-lockfile --registry=https://registry.npmmirror.com
 NODE_OPTIONS="--max-old-space-size=4096" yarn build
+ls -la dist

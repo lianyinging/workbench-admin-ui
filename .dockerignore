@@ -3,11 +3,15 @@
 .vscode
 .DS_Store
 node_modules
-dist
 _site
 docs
 mock
+src
+public
 *.log
 .env.development
 README.md
 LICENSE
+yarn.lock
+package.json
+# dist 必须进镜像，勿忽略
