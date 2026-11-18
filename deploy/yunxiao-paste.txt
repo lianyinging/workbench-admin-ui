@@ -1,12 +1,7 @@
 # 直接粘贴到云效「Docker 部署」→ 部署脚本（$image 为上游镜像变量）
-# ACR 个人版：用户名为阿里云账号；密码在 ACR 控制台「访问凭证」里设置
-# 建议把 ACR_USER / ACR_PASS 配成流水线变量
+# ACR 账密请只写在云效部署框 / 流水线变量，不要提交仓库
 
-REGISTRY="registry.cn-hangzhou.aliyuncs.com"
-ACR_USER="${ACR_USER:-你的阿里云账号}"
-ACR_PASS="${ACR_PASS:-你的ACR固定密码}"
-
-echo "$ACR_PASS" | docker login -u "$ACR_USER" --password-stdin "$REGISTRY"
+echo "$ACR_PASS" | docker login --username="$ACR_USER" --password-stdin registry.cn-hangzhou.aliyuncs.com
 
 CONTAINER_NAME="cm-opc-workbench-admin-ui"
 BACKEND_UPSTREAM="106.15.53.78:9080"
