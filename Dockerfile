@@ -1,11 +1,14 @@
-# OPC 工作台管理前端 — Node 构建 + 容器内 Nginx
+# OPC 工作台管理前端 — Yarn classic 构建 + 容器内 Nginx
 # 运行：docker run -d -p 9002:9002 -e BACKEND_UPSTREAM=106.15.53.78:9080 <image>
 
 FROM node:22-alpine AS builder
 WORKDIR /app
 
+# 固定 Yarn classic（仓库是 yarn.lock v1，不要用 pnpm）
+RUN corepack enable && corepack prepare yarn@1.22.22 --activate
+
 COPY package.json yarn.lock .yarnrc.yml .npmrc ./
-RUN corepack enable && yarn install --frozen-lockfile
+RUN yarn install --frozen-lockfile --registry=https://registry.npmmirror.com
 
 COPY . .
 RUN yarn build
@@ -14,7 +17,6 @@ FROM nginx:1.27-alpine
 LABEL maintainer="opc-workbench" \
       app="cm-opc-workbench-admin-ui"
 
-# 后端上游，部署时用 -e 覆盖（host:port，不含协议）
 ENV BACKEND_UPSTREAM=opc-workbench-admin-service:9080
 
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template

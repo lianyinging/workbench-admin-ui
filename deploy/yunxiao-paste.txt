@@ -1,4 +1,5 @@
 # 直接粘贴到云效「Docker 部署」→ 部署脚本（$image 为上游镜像变量）
+# 构建请走 Dockerfile（Yarn classic），不要用 pnpm install --frozen-lockfile
 
 CONTAINER_NAME="cm-opc-workbench-admin-ui"
 BACKEND_UPSTREAM="106.15.53.78:9080"
