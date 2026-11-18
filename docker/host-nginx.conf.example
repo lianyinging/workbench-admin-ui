@@ -1,19 +1,22 @@
+# 放到宿主机 Nginx（例：/etc/nginx/conf.d/opc-workbench-admin-ui.conf）
+# 将 root 换成实际部署目录；后端地址按环境改。
+
 server {
-    listen       80;
-    server_name  _;
+    listen 80;
+    server_name _;
     charset utf-8;
 
-    root   /usr/share/nginx/html;
-    index  index.html;
+    # 前端静态目录（流水线把 dist 内容同步到这里）
+    root /data/opc-workbench/admin-ui;
+    index index.html;
 
-    # 前端静态资源
     location / {
         try_files $uri $uri/ /index.html;
     }
 
     # 与 .env 中 VITE_APP_BASE_API=/prod-api 对齐
     location /prod-api/ {
-        proxy_pass http://${BACKEND_UPSTREAM}/;
+        proxy_pass http://127.0.0.1:9080/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -21,19 +24,14 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
         client_max_body_size 50m;
     }
 
-    # SSE（若开启）
     location /prod-api/resource/sse {
-        proxy_pass http://${BACKEND_UPSTREAM}/resource/sse;
+        proxy_pass http://127.0.0.1:9080/resource/sse;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
         proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
         proxy_buffering off;
         proxy_cache off;
         chunked_transfer_encoding off;
@@ -41,6 +39,5 @@ server {
     }
 
     gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
-    gzip_min_length 1024;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
 }
