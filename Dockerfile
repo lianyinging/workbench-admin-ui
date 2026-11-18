@@ -1,5 +1,5 @@
 # OPC 工作台管理前端 — Node 构建 + 容器内 Nginx
-# 运行：docker run -d -p 80:80 -e BACKEND_UPSTREAM=host.docker.internal:9080 <image>
+# 运行：docker run -d -p 9002:9002 -e BACKEND_UPSTREAM=host.docker.internal:9080 <image>
 
 FROM node:22-alpine AS builder
 WORKDIR /app
@@ -20,6 +20,6 @@ ENV BACKEND_UPSTREAM=opc-workbench-admin-service:9080
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-EXPOSE 80
+EXPOSE 9002
 
 CMD ["nginx", "-g", "daemon off;"]
