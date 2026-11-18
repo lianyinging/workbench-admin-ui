@@ -1,8 +1,5 @@
-# 仅用于本地/流水线打出 dist 静态资源。
-# 线上由宿主机 Nginx 托管，不在镜像内跑 Nginx。
-#
-# 构建产物目录：/app/dist
-# 流水线也可直接 yarn build，不必一定走 docker build。
+# OPC 工作台管理前端 — Node 构建 + 容器内 Nginx
+# 运行：docker run -d -p 80:80 -e BACKEND_UPSTREAM=host.docker.internal:9080 <image>
 
 FROM node:22-alpine AS builder
 WORKDIR /app
@@ -13,8 +10,16 @@ RUN corepack enable && yarn install --frozen-lockfile
 COPY . .
 RUN yarn build
 
-# 方便 docker create/cp 取出 dist；不作为长期运行容器
-FROM alpine:3.20
-WORKDIR /app
-COPY --from=builder /app/dist ./dist
-CMD ["sh", "-c", "echo 'static files in /app/dist — serve with host nginx' && sleep infinity"]
+FROM nginx:1.27-alpine
+LABEL maintainer="opc-workbench" \
+      app="cm-opc-workbench-admin-ui"
+
+# 后端上游，部署时用 -e 覆盖（host:port，不含协议）
+ENV BACKEND_UPSTREAM=opc-workbench-admin-service:9080
+
+COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
