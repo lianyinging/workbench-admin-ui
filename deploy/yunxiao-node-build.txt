@@ -1,0 +1,6 @@
+# 云效「Node.js 构建」步骤 → 构建命令（粘贴替换原 pnpm 命令）
+
+corepack enable
+corepack prepare yarn@1.22.22 --activate
+yarn install --frozen-lockfile --registry=https://registry.npmmirror.com
+NODE_OPTIONS="--max-old-space-size=4096" yarn build
