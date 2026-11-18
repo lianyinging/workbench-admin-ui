@@ -1,0 +1,20 @@
+# 直接粘贴到云效「Docker 部署」→ 部署脚本（$image 为上游镜像变量）
+
+CONTAINER_NAME="cm-opc-workbench-admin-ui"
+BACKEND_UPSTREAM="host.docker.internal:9080"
+
+docker stop $CONTAINER_NAME || true
+docker rm $CONTAINER_NAME || true
+
+for img in `docker images | grep -i opc-workbench-admin-ui | awk '{print $3}'`
+do
+   echo $img
+   docker rmi $img || true
+done
+
+docker run -d --restart=always \
+  --name="$CONTAINER_NAME" \
+  -p 9002:9002 \
+  -e BACKEND_UPSTREAM="$BACKEND_UPSTREAM" \
+  --add-host=host.docker.internal:host-gateway \
+  $image
