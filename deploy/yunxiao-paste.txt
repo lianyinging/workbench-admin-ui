@@ -1,5 +1,12 @@
 # 直接粘贴到云效「Docker 部署」→ 部署脚本（$image 为上游镜像变量）
-# 构建请走 Dockerfile（Yarn classic），不要用 pnpm install --frozen-lockfile
+# ACR 个人版：用户名为阿里云账号；密码在 ACR 控制台「访问凭证」里设置
+# 建议把 ACR_USER / ACR_PASS 配成流水线变量
+
+REGISTRY="registry.cn-hangzhou.aliyuncs.com"
+ACR_USER="${ACR_USER:-你的阿里云账号}"
+ACR_PASS="${ACR_PASS:-你的ACR固定密码}"
+
+echo "$ACR_PASS" | docker login -u "$ACR_USER" --password-stdin "$REGISTRY"
 
 CONTAINER_NAME="cm-opc-workbench-admin-ui"
 BACKEND_UPSTREAM="106.15.53.78:9080"
@@ -12,6 +19,8 @@ do
    echo $img
    docker rmi $img || true
 done
+
+docker pull $image
 
 docker run -d --restart=always \
   --name="$CONTAINER_NAME" \
