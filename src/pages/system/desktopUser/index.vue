@@ -99,6 +99,10 @@
           <span v-if="row.appTitles?.length" class="app-titles">{{ row.appTitles.join('、') }}</span>
           <t-tag v-else theme="default" variant="light">未订阅</t-tag>
         </template>
+        <template #coworkers="{ row }">
+          <span v-if="row.coworkerTitles?.length" class="app-titles">{{ row.coworkerTitles.join('、') }}</span>
+          <t-tag v-else theme="default" variant="light">未授权</t-tag>
+        </template>
         <template #status="{ row }">
           <dict-tag :options="sys_normal_disable" :value="row.status" />
         </template>
@@ -109,13 +113,9 @@
           <span>{{ parseTime(row.createTime) }}</span>
         </template>
         <template #operation="{ row }">
-          <t-space :size="8" break-line>
-            <my-link v-hasPermi="['system:desktopUser:edit']" @click.stop="handleUpdate(row)">
-              <template #prefix-icon><edit-icon /></template>修改
-            </my-link>
-            <my-link v-hasPermi="['system:desktopUser:resetPwd']" @click.stop="handleResetPwd(row)">
-              <template #prefix-icon><secured-icon /></template>重置密码
-            </my-link>
+          <div class="op-actions">
+            <my-link v-hasPermi="['system:desktopUser:edit']" @click.stop="handleUpdate(row)">修改</my-link>
+            <my-link v-hasPermi="['system:desktopUser:resetPwd']" @click.stop="handleResetPwd(row)">重置密码</my-link>
             <my-link
               v-if="row.status === '1'"
               v-hasPermi="['system:desktopUser:edit']"
@@ -133,9 +133,9 @@
               启用
             </my-link>
             <my-link v-hasPermi="['system:desktopUser:remove']" theme="danger" @click.stop="handleDelete(row)">
-              <template #prefix-icon><delete-icon /></template>删除
+              删除
             </my-link>
-          </t-space>
+          </div>
         </template>
       </t-table>
     </t-space>
@@ -183,6 +183,31 @@
             </t-checkbox-group>
             <span v-else class="app-empty">暂无启用中的行业应用</span>
           </t-form-item>
+          <t-form-item label="同事">
+            <t-checkbox-group
+              v-if="coworkerOptions.length"
+              v-model="form.coworkerIds"
+              class="app-check-group"
+              @change="onCoworkerIdsChange"
+            >
+              <t-checkbox
+                v-for="cw in coworkerOptions"
+                :key="String(cw.coworkerId)"
+                :value="Number(cw.coworkerId)"
+              >
+                {{ cw.name }}
+              </t-checkbox>
+            </t-checkbox-group>
+            <span v-else class="app-empty">暂无启用中的同事</span>
+          </t-form-item>
+          <t-form-item v-if="grantableTools.length" label="工具授权">
+            <t-checkbox-group v-model="selectedToolKeys" class="app-check-group" @change="syncCoworkerTools">
+              <t-checkbox v-for="item in grantableTools" :key="item.key" :value="item.key">
+                <span class="tool-grant-label">{{ item.coworkerName }} · {{ item.toolName }}</span>
+                <span v-if="item.logicalMcp" class="tool-grant-mcp">（{{ item.logicalMcp }}）</span>
+              </t-checkbox>
+            </t-checkbox-group>
+          </t-form-item>
           <t-form-item label="备注" name="remark">
             <t-textarea v-model="form.remark" placeholder="备注" :autosize="{ minRows: 2, maxRows: 4 }" />
           </t-form-item>
@@ -196,20 +221,18 @@
 defineOptions({
   name: 'DesktopUser',
 });
-import {
-  AddIcon,
-  DeleteIcon,
-  EditIcon,
-  RefreshIcon,
-  SearchIcon,
-  SecuredIcon,
-  SettingIcon,
-} from 'tdesign-icons-vue-next';
+import { AddIcon, DeleteIcon, EditIcon, RefreshIcon, SearchIcon, SettingIcon } from 'tdesign-icons-vue-next';
 import type { FormInstanceFunctions, FormRule, PageInfo, PrimaryTableCol, SubmitContext } from 'tdesign-vue-next';
 import { computed, getCurrentInstance, onMounted, ref } from 'vue';
 
-import type { OpcDesktopUserForm, OpcDesktopUserQuery, OpcDesktopUserVo } from '@/api/system/model/desktopUserModel';
+import type {
+  OpcDesktopUserCoworkerTool,
+  OpcDesktopUserForm,
+  OpcDesktopUserQuery,
+  OpcDesktopUserVo,
+} from '@/api/system/model/desktopUserModel';
 import type { OpcIndustryAppVo } from '@/api/system/model/industryAppModel';
+import type { OpcCoworkerVo } from '@/api/system/model/coworkerModel';
 import {
   addDesktopUser,
   changeDesktopUserStatus,
@@ -219,6 +242,7 @@ import {
   resetDesktopUserPwd,
   updateDesktopUser,
 } from '@/api/system/desktopUser';
+import { listCoworkerEnabledOptions } from '@/api/system/coworker';
 import { listIndustryApp } from '@/api/system/industryApp';
 
 const { proxy } = getCurrentInstance();
@@ -226,6 +250,8 @@ const { sys_normal_disable } = proxy.useDict('sys_normal_disable');
 
 const userList = ref<OpcDesktopUserVo[]>([]);
 const industryAppOptions = ref<OpcIndustryAppVo[]>([]);
+const coworkerOptions = ref<OpcCoworkerVo[]>([]);
+const selectedToolKeys = ref<string[]>([]);
 const open = ref(false);
 const loading = ref(false);
 const eLoading = ref(false);
@@ -262,11 +288,12 @@ const columns = ref<Array<PrimaryTableCol>>([
   { title: '昵称', colKey: 'nickName', align: 'center', ellipsis: true, minWidth: 120 },
   { title: '登录在线', colKey: 'online', align: 'center', width: 100 },
   { title: '行业应用', colKey: 'subscribed', align: 'center', ellipsis: true, minWidth: 160 },
+  { title: '同事', colKey: 'coworkers', align: 'center', ellipsis: true, minWidth: 140 },
   { title: '状态', colKey: 'status', align: 'center', width: 90 },
   { title: '最后登录', colKey: 'lastLoginTime', align: 'center', width: 170 },
   { title: '登录IP', colKey: 'lastLoginIp', align: 'center', ellipsis: true, minWidth: 120 },
   { title: '创建时间', colKey: 'createTime', align: 'center', width: 170 },
-  { title: '操作', colKey: 'operation', align: 'center', width: 280, fixed: 'right' },
+  { title: '操作', colKey: 'operation', align: 'center', width: 300, fixed: 'right' },
 ]);
 
 const form = ref<OpcDesktopUserForm>({
@@ -277,6 +304,8 @@ const form = ref<OpcDesktopUserForm>({
   status: '1',
   subscribed: '0',
   appIds: [],
+  coworkerIds: [],
+  coworkerTools: [],
   remark: undefined,
 });
 const queryParams = ref<OpcDesktopUserQuery>({
@@ -285,6 +314,39 @@ const queryParams = ref<OpcDesktopUserQuery>({
   userName: undefined,
   nickName: undefined,
   status: undefined,
+});
+
+type GrantableTool = {
+  key: string;
+  coworkerId: number;
+  coworkerName: string;
+  logicalMcp: string;
+  toolName: string;
+};
+
+function toolGrantKey(coworkerId: number, logicalMcp?: string, toolName?: string) {
+  return `${coworkerId}|${logicalMcp || ''}|${toolName || ''}`;
+}
+
+const grantableTools = computed<GrantableTool[]>(() => {
+  const ids = new Set((form.value.coworkerIds || []).map((v) => Number(v)));
+  const out: GrantableTool[] = [];
+  for (const cw of coworkerOptions.value) {
+    const cwId = Number(cw.coworkerId);
+    if (!ids.has(cwId)) continue;
+    for (const t of cw.tools || []) {
+      const toolName = t.toolName || '';
+      if (!toolName) continue;
+      out.push({
+        key: toolGrantKey(cwId, t.logicalMcp, toolName),
+        coworkerId: cwId,
+        coworkerName: cw.name || String(cwId),
+        logicalMcp: t.logicalMcp || '',
+        toolName,
+      });
+    }
+  }
+  return out;
 });
 
 const pagination = computed(() => ({
@@ -319,7 +381,48 @@ function reset() {
   form.value.status = '1';
   form.value.subscribed = '0';
   form.value.appIds = [];
+  form.value.coworkerIds = [];
+  form.value.coworkerTools = [];
   form.value.remark = undefined;
+  selectedToolKeys.value = [];
+}
+
+function loadCoworkerOptions() {
+  return listCoworkerEnabledOptions()
+    .then((res) => {
+      const data = (res as any)?.data ?? res;
+      coworkerOptions.value = Array.isArray(data) ? data : [];
+    })
+    .catch(() => {
+      coworkerOptions.value = [];
+    });
+}
+
+function syncCoworkerTools() {
+  const map = new Map(grantableTools.value.map((g) => [g.key, g]));
+  form.value.coworkerTools = selectedToolKeys.value
+    .map((key) => {
+      const g = map.get(key);
+      if (!g) return null;
+      return {
+        coworkerId: g.coworkerId,
+        logicalMcp: g.logicalMcp,
+        toolName: g.toolName,
+      } as OpcDesktopUserCoworkerTool;
+    })
+    .filter(Boolean) as OpcDesktopUserCoworkerTool[];
+}
+
+function onCoworkerIdsChange() {
+  const allowed = new Set(grantableTools.value.map((g) => g.key));
+  selectedToolKeys.value = selectedToolKeys.value.filter((k) => allowed.has(k));
+  syncCoworkerTools();
+}
+
+function applyCoworkerToolsFromForm(tools?: OpcDesktopUserCoworkerTool[]) {
+  selectedToolKeys.value = (tools || [])
+    .map((t) => toolGrantKey(Number(t.coworkerId), t.logicalMcp, t.toolName))
+    .filter(Boolean);
 }
 
 function loadIndustryApps() {
@@ -339,6 +442,9 @@ function applyUserToForm(data: Partial<OpcDesktopUserVo>) {
   form.value.status = data.status ?? '1';
   form.value.subscribed = data.subscribed ?? '0';
   form.value.appIds = (data.appIds || []).map((v) => Number(v)).filter((n) => !Number.isNaN(n));
+  form.value.coworkerIds = (data.coworkerIds || []).map((v) => Number(v)).filter((n) => !Number.isNaN(n));
+  form.value.coworkerTools = [...(data.coworkerTools || [])];
+  applyCoworkerToolsFromForm(form.value.coworkerTools);
   form.value.remark = data.remark;
   form.value.password = undefined;
 }
@@ -451,6 +557,7 @@ function handleResetPwd(row: OpcDesktopUserVo) {
 
 onMounted(() => {
   loadIndustryApps();
+  loadCoworkerOptions();
   getList();
 });
 </script>
@@ -475,5 +582,20 @@ onMounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: bottom;
+}
+.tool-grant-label {
+  font-size: 13px;
+}
+.tool-grant-mcp {
+  font-size: 12px;
+  color: var(--td-text-color-placeholder);
+}
+.op-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
 }
 </style>

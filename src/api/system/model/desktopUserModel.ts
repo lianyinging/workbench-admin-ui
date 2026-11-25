@@ -6,6 +6,12 @@ export interface OpcDesktopUserQuery extends BaseEntity {
   status?: string;
 }
 
+export interface OpcDesktopUserCoworkerTool {
+  coworkerId?: number;
+  logicalMcp?: string;
+  toolName?: string;
+}
+
 export interface OpcDesktopUserForm {
   userId?: number;
   userName?: string;
@@ -16,6 +22,10 @@ export interface OpcDesktopUserForm {
   subscribed?: string;
   /** 订阅的行业应用 ID（多选） */
   appIds?: number[];
+  /** 订阅的同事 ID（多选） */
+  coworkerIds?: number[];
+  /** 同事工具授权 */
+  coworkerTools?: OpcDesktopUserCoworkerTool[];
   remark?: string;
 }
 
@@ -28,6 +38,9 @@ export interface OpcDesktopUserVo extends BaseEntity {
   subscribed?: string;
   appIds?: number[];
   appTitles?: string[];
+  coworkerIds?: number[];
+  coworkerTitles?: string[];
+  coworkerTools?: OpcDesktopUserCoworkerTool[];
   remark?: string;
   lastLoginIp?: string;
   lastLoginTime?: string;
