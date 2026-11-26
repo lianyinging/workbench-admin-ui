@@ -21,17 +21,6 @@
           />
           <div v-if="vo.hasApiKey" class="field-hint">当前已配置{{ vo.apiKeyHint ? `（${vo.apiKeyHint}）` : '' }}</div>
         </t-form-item>
-        <t-form-item label="虚拟 Server ID" name="virtualServerId">
-          <t-input v-model="form.virtualServerId" placeholder="可选" />
-        </t-form-item>
-        <t-form-item label="Admin Token" name="adminToken">
-          <t-input
-            v-model="form.adminToken"
-            type="password"
-            autocomplete="new-password"
-            :placeholder="vo.hasAdminToken ? '已配置，留空不修改' : '拉取 tools 用'"
-          />
-        </t-form-item>
         <t-form-item label="备注" name="remark">
           <t-textarea v-model="form.remark" :autosize="{ minRows: 2, maxRows: 4 }" />
         </t-form-item>
@@ -53,8 +42,20 @@
         </t-form-item>
       </t-form>
 
-      <t-divider>网关 Tools 预览</t-divider>
-      <t-table :loading="toolsLoading" row-key="toolId" :data="tools" :columns="toolColumns" hover size="small" />
+      <t-divider>网关 Tools 预览（按 MCP 服务）</t-divider>
+      <t-loading :loading="toolsLoading" size="small">
+        <t-empty v-if="!toolsLoading && !toolServiceTabs.length" description="暂无授权工具" />
+        <t-tabs v-else v-model="activeToolServiceTab">
+          <t-tab-panel
+            v-for="tab in toolServiceTabs"
+            :key="tab.key"
+            :value="tab.key"
+            :label="`${tab.label} (${tab.tools.length})`"
+          >
+            <t-table row-key="toolId" :data="tab.tools" :columns="toolColumns" hover size="small" />
+          </t-tab-panel>
+        </t-tabs>
+      </t-loading>
     </t-loading>
   </t-card>
 </template>
@@ -62,7 +63,7 @@
 <script lang="ts" setup>
 defineOptions({ name: 'McpGateway' });
 import type { PrimaryTableCol, SubmitContext } from 'tdesign-vue-next';
-import { getCurrentInstance, onMounted, ref } from 'vue';
+import { computed, getCurrentInstance, onMounted, ref } from 'vue';
 
 import type { McpGatewayToolItem, OpcMcpGatewayConfigForm, OpcMcpGatewayConfigVo } from '@/api/system/model/mcpGatewayModel';
 import { getMcpGatewayConfig, listMcpGatewayTools, saveMcpGatewayConfig } from '@/api/system/mcpGateway';
@@ -76,11 +77,32 @@ const formRef = ref();
 const vo = ref<OpcMcpGatewayConfigVo>({});
 const form = ref<OpcMcpGatewayConfigForm>({});
 const tools = ref<McpGatewayToolItem[]>([]);
+const activeToolServiceTab = ref('');
+
+interface ToolServiceTab {
+  key: string;
+  label: string;
+  tools: McpGatewayToolItem[];
+}
+
+const toolServiceTabs = computed<ToolServiceTab[]>(() => {
+  const map = new Map<string, ToolServiceTab>();
+  for (const item of tools.value) {
+    const key = (item.gatewayId || item.gatewayName || '_other').trim() || '_other';
+    const label = (item.gatewayName || item.gatewayId || '未分组服务').trim() || '未分组服务';
+    let tab = map.get(key);
+    if (!tab) {
+      tab = { key, label, tools: [] };
+      map.set(key, tab);
+    }
+    tab.tools.push(item);
+  }
+  return Array.from(map.values());
+});
 
 const toolColumns = ref<Array<PrimaryTableCol>>([
   { title: 'Tool ID', colKey: 'toolId', ellipsis: true, minWidth: 140 },
   { title: '名称', colKey: 'toolName', ellipsis: true, minWidth: 140 },
-  { title: 'Gateway ID', colKey: 'gatewayId', ellipsis: true, width: 120 },
   { title: '描述', colKey: 'description', ellipsis: true, minWidth: 200 },
 ]);
 
@@ -89,8 +111,6 @@ function applyVo(data: OpcMcpGatewayConfigVo) {
   form.value = {
     gatewayBaseUrl: data.gatewayBaseUrl,
     gatewayApiKey: undefined,
-    virtualServerId: data.virtualServerId,
-    adminToken: undefined,
     remark: data.remark,
   };
 }
@@ -122,7 +142,6 @@ function submitForm({ validateResult, firstError }: SubmitContext) {
     .then(() => {
       proxy.$modal.msgSuccess('保存成功');
       form.value.gatewayApiKey = undefined;
-      form.value.adminToken = undefined;
       loadConfig();
     })
     .finally(() => {
@@ -133,13 +152,16 @@ function submitForm({ validateResult, firstError }: SubmitContext) {
 
 function loadTools() {
   toolsLoading.value = true;
+  activeToolServiceTab.value = '';
   listMcpGatewayTools()
     .then((res) => {
       const data = (res as any)?.data ?? res;
       tools.value = Array.isArray(data) ? data : [];
+      activeToolServiceTab.value = toolServiceTabs.value[0]?.key || '';
     })
     .catch(() => {
       tools.value = [];
+      activeToolServiceTab.value = '';
     })
     .finally(() => {
       toolsLoading.value = false;

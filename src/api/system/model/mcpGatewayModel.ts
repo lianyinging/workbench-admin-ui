@@ -23,4 +23,5 @@ export interface McpGatewayToolItem {
   toolName?: string;
   description?: string;
   gatewayId?: string;
+  gatewayName?: string;
 }
